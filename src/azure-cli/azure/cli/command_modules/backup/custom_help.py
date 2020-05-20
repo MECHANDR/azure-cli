@@ -17,7 +17,7 @@ from msrestazure.tools import parse_resource_id, is_valid_resource_id
 
 from azure.mgmt.recoveryservicesbackup.models import OperationStatusValues, JobStatus
 
-from azure.cli.core.util import CLIError, sdk_no_wait
+from azure.cli.core.util import CLIError
 from azure.cli.command_modules.backup._client_factory import (
     job_details_cf, protection_container_refresh_operation_results_cf,
     backup_operation_statuses_cf, protection_container_operation_results_cf)
@@ -113,6 +113,15 @@ def validate_object(obj, error_message):
         raise ValueError(error_message)
 
 
+def get_target_path(resource_type, path, logical_name, data_directory_paths):
+    for filepath in data_directory_paths:
+        if filepath.type == resource_type:
+            data_directory_path = filepath
+    file_type = path.split('\\')[-1].split('.')[1]
+    file_name = logical_name + '_' + str(int(time.time())) + '.' + file_type
+    return data_directory_path.path + file_name
+
+
 # Tracking Utilities
 # pylint: disable=inconsistent-return-statements
 def track_backup_ilr(cli_ctx, result, vault_name, resource_group):
@@ -150,36 +159,42 @@ def track_refresh_operation(cli_ctx, result, vault_name, resource_group):
     protection_container_refresh_operation_results_client = protection_container_refresh_operation_results_cf(cli_ctx)
 
     operation_id = get_operation_id_from_header(result.response.headers['Location'])
-    result = sdk_no_wait(True, protection_container_refresh_operation_results_client.get,
-                         vault_name, resource_group, fabric_name, operation_id)
+    result = protection_container_refresh_operation_results_client.get(vault_name, resource_group,
+                                                                       fabric_name, operation_id,
+                                                                       raw=True)
     while result.response.status_code == 202:
         time.sleep(1)
-        result = sdk_no_wait(True, protection_container_refresh_operation_results_client.get,
-                             vault_name, resource_group, fabric_name, operation_id)
+        result = protection_container_refresh_operation_results_client.get(vault_name, resource_group,
+                                                                           fabric_name, operation_id,
+                                                                           raw=True)
 
 
 def track_register_operation(cli_ctx, result, vault_name, resource_group, container_name):
     protection_container_operation_results_client = protection_container_operation_results_cf(cli_ctx)
 
     operation_id = get_operation_id_from_header(result.response.headers['Location'])
-    result = sdk_no_wait(True, protection_container_operation_results_client.get,
-                         vault_name, resource_group, fabric_name, container_name, operation_id)
+    result = protection_container_operation_results_client.get(vault_name, resource_group,
+                                                               fabric_name, container_name,
+                                                               operation_id, raw=True)
     while result.response.status_code == 202:
         time.sleep(1)
-        result = sdk_no_wait(True, protection_container_operation_results_client.get,
-                             vault_name, resource_group, fabric_name, container_name, operation_id)
+        result = protection_container_operation_results_client.get(vault_name, resource_group,
+                                                                   fabric_name, container_name,
+                                                                   operation_id, raw=True)
 
 
 def track_inquiry_operation(cli_ctx, result, vault_name, resource_group, container_name):
     protection_container_operation_results_client = protection_container_operation_results_cf(cli_ctx)
 
     operation_id = get_operation_id_from_header(result.response.headers['Location'])
-    result = sdk_no_wait(True, protection_container_operation_results_client.get,
-                         vault_name, resource_group, fabric_name, container_name, operation_id)
+    result = protection_container_operation_results_client.get(vault_name, resource_group,
+                                                               fabric_name, container_name,
+                                                               operation_id, raw=True)
     while result.response.status_code == 202:
         time.sleep(1)
-        result = sdk_no_wait(True, protection_container_operation_results_client.get,
-                             vault_name, resource_group, fabric_name, container_name, operation_id)
+        result = protection_container_operation_results_client.get(vault_name, resource_group,
+                                                                   fabric_name, container_name,
+                                                                   operation_id, raw=True)
 
 
 def job_in_progress(job_status):
